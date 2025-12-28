@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+set -e
+
+psql -v ON_ERROR_STOP=1 --username "imdbowner" --dbname "imdbdb" <<-EOSQL
+  GRANT USAGE ON SCHEMA imdb TO imdbreadwrite;
+  GRANT INSERT, SELECT, UPDATE, DELETE ON ALL TABLES IN SCHEMA imdb TO imdbreadwrite;
+  GRANT USAGE ON ALL SEQUENCES IN SCHEMA imdb TO imdbreadwrite;
+  ALTER DEFAULT PRIVILEGES IN SCHEMA imdb GRANT INSERT, SELECT, UPDATE, DELETE ON TABLES TO imdbreadwrite;
+  ALTER DEFAULT PRIVILEGES IN SCHEMA imdb GRANT USAGE ON SEQUENCES TO imdbreadwrite;
+
+  GRANT USAGE ON SCHEMA imdb TO imdbreadonly;
+  GRANT SELECT ON ALL TABLES IN SCHEMA imdb TO imdbreadonly;
+  ALTER DEFAULT PRIVILEGES IN SCHEMA imdb GRANT SELECT ON TABLES TO imdbreadonly;
+EOSQL

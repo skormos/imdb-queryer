@@ -1,0 +1,80 @@
+volumes:
+  postgres-data:
+  pgadmin-data:
+  sources-data:
+
+networks:
+  imdb-queryer:
+
+services:
+  db:
+    image: postgres:18-alpine
+    command: >
+      -c work_mem=1GB
+      -c maintenance_work_mem=256MB
+      -c max_wal_size=3GB
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=pgpass
+    ports:
+      - '5432:5432'
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres && test -f /var/lib/postgresql/data/.init_complete"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+      start_period: 300s
+    volumes:
+      - 'postgres-data:/var/lib/postgresql/data'
+      - './postgres/initdb:/docker-entrypoint-initdb.d'
+      - 'sources-data:/src'
+    networks:
+      - imdb-queryer
+    depends_on:
+      source-parser:
+        condition: service_completed_successfully
+
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: always
+    ports:
+      - "8888:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.org
+      PGADMIN_DEFAULT_PASSWORD: admin
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    networks:
+      - imdb-queryer
+    depends_on:
+      db:
+        condition: service_healthy
+
+  source-downloader:
+    build:
+      dockerfile: python.Dockerfile
+      context: .
+    image: imdb-python-scripts:latest
+    command: python3 -u /app/download_sources.py
+    volumes:
+      - ./scripts:/app
+      - 'sources-data:/src'
+
+  source-parser:
+    image: imdb-python-scripts:latest
+    command: python3 -u /app/parse_sources.py
+    volumes:
+      - ./scripts:/app
+      - 'sources-data:/src'
+    depends_on:
+      source-downloader:
+        condition: service_completed_successfully
+#
+#  source-cleanup:
+#    image: imdb-python-scripts:latest
+#    command: rm -rf /src/*
+#    volumes:
+#      - ./sources:/src
+#    depends_on:
+#      db:
+#        condition: service_healthy
