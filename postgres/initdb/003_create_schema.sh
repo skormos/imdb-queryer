@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 
+# Creates the (empty) imdb schema. The tables are created and filled by the
+# loader service (loader/load.sh), which can be re-run at any time to refresh.
+
 set -e
 
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "imdbdb" <<-EOSQL
-  CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
   CREATE SCHEMA imdb AUTHORIZATION imdbowner;
 EOSQL
 
